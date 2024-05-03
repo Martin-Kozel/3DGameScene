@@ -12,25 +12,6 @@
 #define STB_IMAGE_IMPLEMENTATION // Define STB_IMAGE_IMPLEMENTATION only once
 #include <./include/stb_image.h> // Include single file header for loading images
 
-/**
- * @brief Converts a given number to its string representation.
- *
- * This function takes a numeric value of type T and converts it into its string representation.
- * Helper Template function to convert Number to String for HUD
- *
- * @tparam T The type of the input number. It can be any numeric type supported by the stringstream.
- * @param number The numeric value to be converted to a string.
- * @return A string representation of the input number.
- *
- * @note This function utilizes a stringstream to perform the conversion, ensuring compatibility with various numeric types.
- * @warning Beware of potential precision loss or formatting issues when converting floating-point numbers.
- *
- * Example usage:
- * @code
- * int num = 123;
- * string numString = toString(num); // numString will be "123"
- * @endcode
- */
 template <typename T>
 string toString(T number)
 {
@@ -58,7 +39,7 @@ GLenum error; // OpenGL Error Code
 const string filename = "./assets/textures/grid.tga";
 // Please see ../assets/textures/ for more textures
 // const string filename = "./assets/textures/coordinates.tga";
-// const string filename = "./assets/textures/cube.tga";
+ //const string filename1 = "./assets/textures/cube.tga";
 // const string filename = "./assets/textures/grid_wip.tga";
 // const string filename = "./assets/textures/minecraft.tga";
 // const string filename = "./assets/textures/texture.tga";
@@ -80,11 +61,6 @@ Font font; // Game font
 
 float x_offset, y_offset, z_offset; // offset on screen (Vertex Shader)
 
-/**
- * @brief Constructs a new Game object with the specified context settings.
- *
- * @param settings Context settings for the window.
- */
 Game::Game(sf::ContextSettings settings) : window(VideoMode(800, 600),
 												  "Project I StarterKit 3D Game Scene",
 												  sf::Style::Default,
@@ -93,24 +69,16 @@ Game::Game(sf::ContextSettings settings) : window(VideoMode(800, 600),
 	DEBUG_MSG("\nGame::Game() Constructor\n");
 }
 
-/**
- * @brief Destroys the Game object.
- */
 Game::~Game()
 {
 	DEBUG_MSG("\nGame::~Game() Destructor\n");
-}
+ }
 
-/**
- * @brief Initializes the game.
- *
- * This method initializes various resources and sets up OpenGL for rendering. Method is responsible for setting up various OpenGL
- * resources, including shaders, buffers, textures, and matrices. It initializes GLEW, sets up shaders (vertex and fragment), loads
- * texture data, and sets up projection and camera matrices.
- */
 void Game::initialise()
 {
+
 	DEBUG_MSG("\n******** Initialisation Procedure STARTS ********\n");
+	
 
 	isRunning = true;
 	GLint isCompiled = 0;
@@ -125,14 +93,30 @@ void Game::initialise()
 
 	DEBUG_MSG("\n******** Init GameObjects STARTS ********\n");
 
-	game_object[0] = new GameObject(TYPE::PLAYER);
-	game_object[0]->setPosition(vec3(0.0001f, 0.0f, 0.0f));
+	for (int i = 0; i < 10; i++)
+	{
+		// Spawn normal enemies
+		enemies.push_back(new Enemy(TYPE::RED, i * 9));
+		enemies.push_back(new Enemy(TYPE::GREEN, i * 9));
+		enemies.push_back(new Enemy(TYPE::BLUE, i * 9));
 
-	game_object[1] = new GameObject(TYPE::NPC);
-	game_object[1]->setPosition(vec3(0.0003f, 0.0f, 0.0f));
+		// Check if it's the last row
+		if (i == 9)
+		{
+			// Spawn WIN type enemy in the last row
+			enemies.push_back(new Enemy(TYPE::WIN, i * 9));
+		}
+	}
 
-	game_object[2] = new GameObject(TYPE::BOSS);
-	game_object[2]->setPosition(vec3(0.0003f, 0.0f, 0.0f));
+	player = new Player(TYPE::RED);
+	player->setPosition(vec3(0.0f, 0.0f, 4.0f));
+
+
+	for (auto& cube : enemies)
+	{
+		cube->setModelMatrix(translate(glm::mat4(1.0f), cube->getPosition()));
+		std::cout << std::to_string(cube->getPosition().x) << " " << std::to_string(cube->getPosition().y) << " " << std::to_string(cube->getPosition().z) << std::endl;
+	}
 
 	DEBUG_MSG("\n******** Init GameObjects ENDS ********\n");
 
@@ -149,9 +133,9 @@ void Game::initialise()
 																		   // and there are 4 vertices per face
 	}
 
-	// 	for (int i = 1; i < 6; i++) {
-	//		memcpy(&uvs[i * 4 * 2], &uvs[0], 2 * 4 * sizeof(GLfloat));
-	//	}
+	 //	for (int i = 1; i < 6; i++) {
+		//	memcpy(&uvs[i * 4 * 2], &uvs[0], 2 * 4 * sizeof(GLfloat));
+		//}
 
 	// Output GPU information to the debug console
 	DEBUG_MSG("\n******** GPU information STARTS ********\n");
@@ -171,9 +155,9 @@ void Game::initialise()
 
 	DEBUG_MSG("\n******** Model information STARTS ********\n");
 	// Vertices (3) x,y,z , Colors (4) RGBA, UV/ST (2)
-	int countVERTICES = game_object[0]->getVertexCount();
-	int countCOLORS = game_object[0]->getColorCount();
-	int countUVS = game_object[0]->getUVCount();
+	int countVERTICES = player->getVertexCount();
+	int countCOLORS = player->getColorCount();
+	int countUVS = player->getUVCount();
 	DEBUG_MSG("\n******** Model information ENDS ********\n");
 
 	// Vertices (3) x,y,z , Colours (4) RGBA, UV/ST (2)
@@ -183,7 +167,7 @@ void Game::initialise()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vib);
 
 	// Count of Indices
-	int countINDICES = game_object[0]->getIndexCount();
+	int countINDICES = player->getIndexCount();
 
 	DEBUG_MSG("\nVertices : " + to_string(countVERTICES));
 	DEBUG_MSG("Colors : " + to_string(countCOLORS));
@@ -214,6 +198,7 @@ void Game::initialise()
 		//"	gl_Position = vec4(sv_position, 1);\n"
 		"	gl_Position = sv_mvp * vec4(sv_position, 1 );\n"
 		"}\n"; // Vertex Shader Src
+
 
 	DEBUG_MSG("\n******** Vertex Shader src STARTS ********\n");
 	DEBUG_MSG(string(vs_src));
@@ -247,7 +232,7 @@ void Game::initialise()
 	}
 
 	// Define and compile Fragment Shader
-	const char *fs_src =
+		const char *fs_src =
 		"#version 130\n\n"
 		"\n"
 		"uniform sampler2D f_texture;\n"
@@ -364,7 +349,7 @@ void Game::initialise()
 	projection = perspective(
 		45.0f,		 // Field of View 45 degrees
 		4.0f / 3.0f, // Aspect ratio: 4:3
-		5.0f,		 // Display Range Min : 0.1f unit
+		0.1f,		 // Display Range Min : 0.1f unit
 		100.0f		 // Display Range Max : 100.0f unit
 	);
 
@@ -398,27 +383,47 @@ void Game::initialise()
 	DEBUG_MSG("\n******** Initialisation Procedure ENDS ********\n");
 }
 
-/**
- * @brief Updates the game state.
- */
+
 void Game::update()
 {
+
+
 #if (DEBUG >= 2)
 	DEBUG_MSG("Updating... MVP");
 #endif
+
+
 	// Update the Model View Projection matrix by combining the projection, view, and model matrices
+	if (player->isAlive())
+	{
 
-	for (unsigned int i = 0; i < sizeof(game_object) / sizeof(game_object[0]); i++){
+		player->update(deltaTime.asSeconds());
+		for (auto& cube : enemies)
+		{
+			if (cube->drawable())
+			{
 
-		// MVP = PROJECTION * VIEW * MODEL (GameObject Model)
-		game_object[i]->setMVPMatrix(projection * view * game_object[i]->getModelMatrix());
+				cube->update(deltaTime.asSeconds());
+				cube->setMVPMatrix(projection * view * cube->getModelMatrix());
 
-#if (DEBUG >= 2)
-	DEBUG_MSG("MVP : " + game_object[i]->enumToString());
-	DEBUG_MSG(glm::to_string(game_object[i]->getModelMatrix()));
-#endif
-
+				if (player->checkCollision(cube))
+				{
+					if (player->getType() != cube->getType() && cube->getType() != TYPE::WIN)
+					{
+						cout << "GAME OVER! (Collision)" << endl;
+						player->isNotAlive();
+					}
+					else if (cube->getType() == TYPE::WIN)
+					{
+						cout << "You Won!" << endl;
+						player->isNotAlive();
+					}
+				}
+			}
+		}
 	}
+
+	
 
 #if (DEBUG >= 2)
 	DEBUG_MSG("MVP : " + glm::to_string(mvp));
@@ -429,12 +434,6 @@ void Game::update()
 #endif
 }
 
-/**
- * @brief Runs the game loop.
- *
- * Method contains the main game loop where events are handled, the game state is updated (Game::update()), and
- * the scene is rendered (Game::render()). The loop runs until the isRunning flag is false.
- */
 void Game::run()
 {
 
@@ -443,11 +442,65 @@ void Game::run()
 
 	// Create an event object for handling window events
 	Event event;
-
+	Clock clock;
+	// Variables to track FPS
+	int frameCount = 0;
+	float fpsUpdateTime = 0.0f;
 	// Main game loop
 	while (isRunning)
 	{
 
+		// Handle events such as window close or keyboard input
+		while (window.pollEvent(event))
+		{
+			// Check if the window is being closed
+			if (event.type == Event::Closed)
+			{
+				// Set the flag to stop the game loop
+				isRunning = false;
+			}
+
+			// Check for keyboard input for model translation
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+			{
+				// Translate the model leftwards along the x-axis
+				player->moveLeft();// Translate Left
+			}
+
+			// Check for keyboard input for model translation
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+			{
+				// Translate the model rightwards along the x-axis
+				player->moveRight();// Translate Right
+			}
+
+
+		}
+
+
+
+
+		deltaTime = clock.restart();
+
+		// Increment frame count
+		frameCount++;
+
+		// Update FPS timer
+		fpsUpdateTime += deltaTime.asSeconds();
+
+		// Check if it's time to update FPS
+		if (fpsUpdateTime >= 1.0f)
+		{
+			// Calculate FPS
+			float fps = static_cast<float>(frameCount) / fpsUpdateTime;
+
+			// Output FPS to console or perform any desired action
+			std::cout << "FPS: " << fps << std::endl;
+
+			// Reset frame count and FPS update time
+			frameCount = 0;
+			fpsUpdateTime = 0.0f;
+		}
 		// Check if the game is running in debug mode and print debug message
 #if (DEBUG >= 2)
 		DEBUG_MSG("Game running...");
@@ -462,98 +515,8 @@ void Game::run()
 				// Set the flag to stop the game loop
 				isRunning = false;
 			}
-
-			// Player Rotation
-			// Check for keyboard input for model rotation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-			{
-				// Rotate the model upwards around the y-axis
-				game_object[0]->setModelMatrix(rotate(game_object[0]->getModelMatrix(), 0.01f, glm::vec3(0.0f, 1.0f, 0.0f)));// Rotate
-			}
-
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-			{
-				// Rotate the model upwards around the y-axis
-				game_object[0]->setModelMatrix(rotate(game_object[0]->getModelMatrix(), -0.01f, glm::vec3(0.0f, 1.0f, 0.0f)));// Rotate
-			}
-
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-			{
-				// Rotate the model upwards around the x-axis
-				game_object[0]->setModelMatrix(rotate(game_object[0]->getModelMatrix(), -0.01f, glm::vec3(1.0f, 0.0f, 0.0f)));// Rotate
-			}
-
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-			{
-				// Rotate the model downwards around the x-axis
-				game_object[0]->setModelMatrix(rotate(game_object[0]->getModelMatrix(), 0.01f, glm::vec3(1.0f, 0.0f, 0.0f)));// Rotate
-			}
-
-			// NPC Translation
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-			{
-				// Translate the model upwards about the y-axis
-				game_object[1]->setModelMatrix(translate(game_object[1]->getModelMatrix(), glm::vec3(0.0f, 0.1f, 0.0f)));// Translate UP
-			}
-
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-			{
-				// Translate the model downwards along the y-axis
-				game_object[1]->setModelMatrix(translate(game_object[1]->getModelMatrix(), glm::vec3(0.0f, -0.1f, 0.0f)));// Translate Down
-			}
-
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-			{
-				// Translate the model leftwards along the x-axis
-				game_object[1]->setModelMatrix(translate(game_object[1]->getModelMatrix(), glm::vec3(-0.1f, 0.0f, 0.0f)));// Translate Left
-			}
-
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-			{
-				// Translate the model rightwards along the x-axis
-				game_object[1]->setModelMatrix(translate(game_object[1]->getModelMatrix(), glm::vec3(0.1f, 0.0f, 0.0f)));// Translate Right
-			}
-
-			// Boss Translation
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num8) || sf::Keyboard::isKeyPressed(sf::Keyboard::Numpad8))
-			{
-				// Translate the model upwards about the y-axis
-				game_object[2]->setModelMatrix(translate(game_object[2]->getModelMatrix(), glm::vec3(0.0f, 0.1f, 0.0f)));// Translate UP
-			}
-
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num2) || sf::Keyboard::isKeyPressed(sf::Keyboard::Numpad2))
-			{
-				// Translate the model downwards along the y-axis
-				game_object[2]->setModelMatrix(translate(game_object[2]->getModelMatrix(), glm::vec3(0.0f, -0.1f, 0.0f)));// Translate Down
-			}
-
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num4) || sf::Keyboard::isKeyPressed(sf::Keyboard::Numpad4))
-			{
-				// Translate the model leftwards along the x-axis
-				game_object[2]->setModelMatrix(translate(game_object[2]->getModelMatrix(), glm::vec3(-0.1f, 0.0f, 0.0f)));// Translate Left
-			}
-
-			// Check for keyboard input for model translation
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Num6) || sf::Keyboard::isKeyPressed(sf::Keyboard::Numpad6))
-			{
-				// Translate the model rightwards along the x-axis
-				game_object[2]->setModelMatrix(translate(game_object[2]->getModelMatrix(), glm::vec3(0.1f, 0.0f, 0.0f)));// Translate Right
-			}
-			
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::R))
-			{
-				// Reset to Identity Matrix
-				game_object[0]->setModelMatrix(mat4(1.0f));// Reset
-			}
+		
 		}
-
 		// Update game state
 		update();
 
@@ -567,11 +530,44 @@ void Game::run()
 	unload();
 }
 
-/**
- * @brief Renders the game scene.
- * method clears the color and depth buffers, draws the HUD (heads-up display), binds buffers, sets shader uniforms,
- * enables vertex arrays, and draws the cube using indexed drawing.
- */
+
+void Game::unload()
+{
+#if (DEBUG >= 2)
+	// Output a debug message indicating that cleanup process has started
+	DEBUG_MSG("Cleaning up...STARTS");
+#endif
+
+	// Detach the vertex shader from the shader program
+	// Shader could be used with more than one progID
+	glDetachShader(progID, vsid);
+
+	// Detach the fragment shader from the shader program
+	glDetachShader(progID, fsid);
+
+	// Delete the vertex shader
+	glDeleteShader(vsid);
+
+	// Delete the fragment shader
+	glDeleteShader(fsid);
+
+	// Delete the shader program
+	glDeleteProgram(progID);
+
+	// Delete the vertex buffer object
+	glDeleteBuffers(1, &vbo);
+
+	// Delete the vertex index buffer object
+	glDeleteBuffers(1, &vib);
+
+	// Free the image data
+	stbi_image_free(img_data);
+
+#if (DEBUG >= 2)
+	DEBUG_MSG("Cleaning up...ENDS");
+#endif
+}
+
 void Game::render()
 {
 
@@ -646,34 +642,14 @@ void Game::render()
 	// VBO Data....vertices, colours and UV's appended
 	// Add the Vertices for all your GameOjects, Colors and UVS
 
-	for (unsigned int i = 0; i < sizeof(game_object) / sizeof(game_object[0]); i++)
+	for (auto& Enemy : enemies)
 	{
-		glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), game_object[i]->getVertex());
-		glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLOURS * sizeof(GLfloat), colours);
-		glBufferSubData(GL_ARRAY_BUFFER, ((3 * VERTICES) + (4 * COLOURS)) * sizeof(GLfloat), 2 * UVS * sizeof(GLfloat), uvs);
-
-		// Send transformation to shader mvp uniform [0][0] is start of array
-		glUniformMatrix4fv(mvpID, 1, GL_FALSE, &(game_object[i]->getMVPMatrix())[0][0]);
-
-		// Set Active Texture .... 32 GL_TEXTURE0 .... GL_TEXTURE31
-		glActiveTexture(GL_TEXTURE0);
-		glUniform1i(textureID, 0); // 0 .... 31
-
-		// Set pointers for each parameter (with appropriate starting positions)
-		// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glVertexAttribPointer.xml
-		glVertexAttribPointer(positionID, 3, GL_FLOAT, GL_FALSE, 0, 0);
-		glVertexAttribPointer(colorID, 4, GL_FLOAT, GL_FALSE, 0, (void *)(3 * VERTICES * sizeof(GLfloat)));
-		glVertexAttribPointer(uvID, 2, GL_FLOAT, GL_FALSE, 0, (void *)(((3 * VERTICES) + (4 * COLOURS)) * sizeof(GLfloat)));
-
-		// Enable Arrays
-		glEnableVertexAttribArray(positionID);
-		glEnableVertexAttribArray(colorID);
-		glEnableVertexAttribArray(uvID);
-
-		// Draw Element Arrays
-		glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+		if (Enemy->drawable())
+		{
+			renderObject(Enemy);
+		}
 	}
-
+	renderObject(player);
 	window.display();
 
 	// Disable Arrays
@@ -696,49 +672,95 @@ void Game::render()
 	}
 }
 
-/**
- * @brief Performs cleanup by releasing resources allocated during the initialization or execution of the game.
- *
- * The unload method is responsible for releasing various resources used by the game,
- * including shaders, shader programs, buffers, and image data. Releasing resources that are no longer needed to
- * free up memory and prevent resource leaks
- *
- * @note This method should be called when the game is shutting down or when resources are no longer needed.
- */
 
-void Game::unload()
+void Game::renderObject(GameObject* obj)
 {
-#if (DEBUG >= 2)
-	// Output a debug message indicating that cleanup process has started
-	DEBUG_MSG("Cleaning up...STARTS");
-#endif
 
-	// Detach the vertex shader from the shader program
-	// Shader could be used with more than one progID
-	glDetachShader(progID, vsid);
+	glBufferSubData(GL_ARRAY_BUFFER, 0 * VERTICES * sizeof(GLfloat), 3 * VERTICES * sizeof(GLfloat), obj->getVertex());
+	switch (obj->getType())
+	{
+	case TYPE::RED:
+		glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLOURS * sizeof(GLfloat), colours2);
+		break;
+	case TYPE::BLUE:
+		glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLOURS * sizeof(GLfloat), colours);
+		break;
+	case TYPE::GREEN:
+		glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLOURS * sizeof(GLfloat), colours3);
+		break;
+	default:
+		glBufferSubData(GL_ARRAY_BUFFER, 3 * VERTICES * sizeof(GLfloat), 4 * COLOURS * sizeof(GLfloat), colours);
+		break;
+	}
 
-	// Detach the fragment shader from the shader program
-	glDetachShader(progID, fsid);
+	glBufferSubData(GL_ARRAY_BUFFER, ((3 * VERTICES) + (4 * COLOURS)) * sizeof(GLfloat), 2 * UVS * sizeof(GLfloat), uvs);
 
-	// Delete the vertex shader
-	glDeleteShader(vsid);
+	// Set the model-view-projection matrix
 
-	// Delete the fragment shader
-	glDeleteShader(fsid);
+	obj->setMVPMatrix(projection * view * obj->getModelMatrix());
 
-	// Delete the shader program
-	glDeleteProgram(progID);
+	// Send transformation to shader mvp uniform [0][0] is start of array
+	glUniformMatrix4fv(mvpID, 1, GL_FALSE, &obj->getMVPMatrix()[0][0]);
 
-	// Delete the vertex buffer object
-	glDeleteBuffers(1, &vbo);
+	// Set Active Texture .... 32 GL_TEXTURE0 .... GL_TEXTURE31
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(textureID, 0); // 0 .... 31
 
-	// Delete the vertex index buffer object
-	glDeleteBuffers(1, &vib);
+	// Set pointers for each parameter (with appropriate starting positions)
+	// https://www.khronos.org/opengles/sdk/docs/man/xhtml/glVertexAttribPointer.xml
+	glVertexAttribPointer(positionID, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer(colorID, 4, GL_FLOAT, GL_FALSE, 0, (void*)(3 * VERTICES * sizeof(GLfloat)));
+	glVertexAttribPointer(uvID, 2, GL_FLOAT, GL_FALSE, 0, (void*)(((3 * VERTICES) + (4 * COLOURS)) * sizeof(GLfloat)));
 
-	// Free the image data
-	stbi_image_free(img_data);
+	// Enable Arrays
+	glEnableVertexAttribArray(positionID);
+	glEnableVertexAttribArray(colorID);
+	glEnableVertexAttribArray(uvID);
 
-#if (DEBUG >= 2)
-	DEBUG_MSG("Cleaning up...ENDS");
-#endif
+	// Draw Element Arrays
+	glDrawElements(GL_TRIANGLES, 3 * INDICES, GL_UNSIGNED_INT, NULL);
+}
+
+void Game::reinitialise()
+{
+	player->setPosition(vec3(0.0f, 0.0f, 4.0f));
+
+	for (auto& cube : enemies)
+	{
+		cube->setOriginalPosition();
+		cube->setDrawable(true);
+		cube->setModelMatrix(translate(glm::mat4(1.0f), cube->getPosition()));
+		std::cout << std::to_string(cube->getPosition().x) << " " << std::to_string(cube->getPosition().y) << " " << std::to_string(cube->getPosition().z) << std::endl;
+	}
+
+}
+
+void Game::restart()
+{
+	reinitialise();
+}
+
+char* Game::readFile(std::string filename)
+{
+	std::ifstream file(filename, std::ios::in | std::ios::binary);
+	if (!file.is_open()) {
+		throw std::runtime_error("Failed to open file: " + std::string(filename));
+	}
+
+	// Get file length
+	file.seekg(0, std::ios::end);
+	size_t length = file.tellg();
+	file.seekg(0, std::ios::beg);
+
+	// Allocate memory for the buffer
+	char* buffer = new char[length + 1];
+
+	// Read file content into the buffer
+	file.read(buffer, length);
+	buffer[length] = '\0'; // Null-terminate the buffer
+
+	// Close the file
+	file.close();
+
+	return buffer;
 }
